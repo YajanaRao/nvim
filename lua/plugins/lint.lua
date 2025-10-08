@@ -9,7 +9,6 @@ return {
         markdown = { 'markdownlint' },
         javascript = { 'eslint_d' },
         typescript = { 'eslint_d' },
-        vue = { 'eslint_d' },
       }
 
       -- To allow other plugins to add linters to require('lint').linters_by_ft,
