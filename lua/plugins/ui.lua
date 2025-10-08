@@ -1,5 +1,33 @@
 return {
   {
+    'nvim-lualine/lualine.nvim',
+    event = 'VeryLazy',
+    opts = function(_, opts)
+      local icons = {
+        Error = { ' ', 'DiagnosticError' },
+        Inactive = { ' ', 'MsgArea' },
+        Warning = { ' ', 'DiagnosticWarn' },
+        Normal = { ' ', 'Special' },
+      }
+      opts.sections = opts.sections or {}
+      opts.sections.lualine_x = opts.sections.lualine_x or {}
+      table.insert(opts.sections.lualine_x, {
+        function()
+          local status = require('sidekick.status').get()
+          return status and vim.tbl_get(icons, status.kind, 1)
+        end,
+        cond = function()
+          return require('sidekick.status').get() ~= nil
+        end,
+        color = function()
+          local status = require('sidekick.status').get()
+          local hl = status and (status.busy and 'DiagnosticWarn' or vim.tbl_get(icons, status.kind, 2))
+          return { fg = Snacks.util.color(hl) }
+        end,
+      })
+    end,
+  },
+  {
     'folke/snacks.nvim',
     lazy = false,
     ---@type snacks.Config
@@ -10,15 +38,10 @@ return {
       ---@field formats table<string, snacks.dashboard.Text|fun(item:snacks.dashboard.Item, ctx:snacks.dashboard.Format.ctx):snacks.dashboard.Text>
       dashboard = {
         preset = {
-          -- Defaults to a picker that supports `fzf-lua`, `telescope.nvim` and `mini.pick`
           ---@type fun(cmd:string, opts:table)|nil
           pick = nil,
-          -- Used by the `keys` section to show keymaps.
-          -- Set your custom keymaps here.
-          -- When using a function, the `items` argument are the default keymaps.
           ---@type snacks.dashboard.Item[]
           keys = {},
-          -- Used by the `header` section
           header = [[
 ███╗   ██╗███████╗ ██████╗ ██╗   ██╗██╗███╗   ███╗
 ████╗  ██║██╔════╝██╔═══██╗██║   ██║██║████╗ ████║
@@ -31,7 +54,8 @@ return {
         formats = {
           icon = function(item)
             if item.file and item.icon == 'file' or item.icon == 'directory' then
-              return M.icon(item.file, item.icon)
+              local mini_icons = require 'mini.icons'
+              return { mini_icons.get('file', item.file), width = 2, hl = 'icon' }
             end
             return { item.icon, width = 2, hl = 'icon' }
           end,
@@ -60,15 +84,13 @@ return {
       },
     },
   },
+
   { -- Useful plugin to show you pending keybinds.
     'folke/which-key.nvim',
-    event = 'VimEnter', -- Sets the loading event to 'VimEnter'
+    event = 'VimEnter',
     opts = {
       icons = {
-        -- set icon mappings to true if you have a Nerd Font
         mappings = vim.g.have_nerd_font,
-        -- If you are using a Nerd Font: set icons.keys to an empty table which will use the
-        -- default whick-key.nvim defined Nerd Font icons, otherwise define a string table
         keys = vim.g.have_nerd_font and {} or {
           Up = '<Up> ',
           Down = '<Down> ',
@@ -115,12 +137,26 @@ return {
   {
     'folke/noice.nvim',
     event = 'VeryLazy',
-    opts = {
-      -- add any options here
-    },
     dependencies = {
-      -- if you lazy-load any plugin below, make sure to add proper `module="..."` entries
       'MunifTanjim/nui.nvim',
+    },
+    opts = {
+      lsp = {
+        -- override markdown rendering so that **cmp** and other plugins use **Treesitter**
+        override = {
+          ['vim.lsp.util.convert_input_to_markdown_lines'] = true,
+          ['vim.lsp.util.stylize_markdown'] = true,
+          ['cmp.entry.get_documentation'] = true, -- requires hrsh7th/nvim-cmp
+        },
+      },
+      -- you can enable a preset for easier configuration
+      presets = {
+        bottom_search = true, -- use a classic bottom cmdline for search
+        command_palette = true, -- position the cmdline and popupmenu together
+        long_message_to_split = true, -- long messages will be sent to a split
+        inc_rename = false, -- enables an input dialog for inc-rename.nvim
+        lsp_doc_border = false, -- add a border to hover docs and signature help
+      },
     },
   },
 }

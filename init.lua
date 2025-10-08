@@ -1,7 +1,4 @@
--- [ Options ]
 require 'options'
-
--- [ Keymaps ]
 require 'keymaps'
 
 --    See `:help lazy.nvim.txt` or https://github.com/folke/lazy.nvim for more info
@@ -16,10 +13,8 @@ end ---@diagnostic disable-next-line: undefined-field
 vim.opt.rtp:prepend(lazypath)
 
 --
--- NOTE: Here is where you install your plugins.
 require('lazy').setup({
-  -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
-  'tpope/vim-sleuth', -- Detect tabstop and shiftwidth automatically
+  'tpope/vim-sleuth',
 
   require 'plugins.ui',
   require 'plugins.editor',
@@ -33,7 +28,6 @@ require('lazy').setup({
   require 'plugins.snippets',
   require 'plugins.format',
 
-  -- Context aware comments in react html or css
   require 'plugins.comments',
 
   -- Treesitter
@@ -41,12 +35,8 @@ require('lazy').setup({
 
   -- require 'plugins.debug',
   require 'plugins.lint',
-  require 'plugins.git', -- adds gitsigns recommend keymaps
+  require 'plugins.git',
 
-  -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
-  --    This is the easiest way to modularize your config.
-  --
-  --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
   require 'plugins.ai',
   require 'plugins.colorscheme',
 }, {
@@ -70,6 +60,8 @@ require('lazy').setup({
     },
   },
 })
+
+vim.cmd.colorscheme 'tokyonight-night'
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et

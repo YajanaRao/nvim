@@ -8,7 +8,6 @@ Minimalistic Neovim configuration for web development using React.js, React Nati
 * Good looking
 * Feature Rich
 
-
 ## Installation
 
 ### Install Neovim

@@ -86,18 +86,30 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 -- or just use <C-\><C-n> to exit terminal mode
 vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
 
--- [[ Basic Autocommands ]]
---  See `:help lua-guide-autocommands`
-
 -- Highlight when yanking (copying) text
 --  Try it with `yap` in normal mode
---  See `:help vim.highlight.on_yank()`
 vim.api.nvim_create_autocmd('TextYankPost', {
   desc = 'Highlight when yanking (copying) text',
   group = vim.api.nvim_create_augroup('kickstart-highlight-yank', { clear = true }),
   callback = function()
     vim.highlight.on_yank()
   end,
+})
+
+-- Sidekick NES Tab integration
+vim.keymap.set({ 'i', 'n' }, '<Tab>', function()
+  if require('sidekick').nes_jump_or_apply() then
+    return
+  end
+
+  if vim.lsp.inline_completion and vim.lsp.inline_completion.get and vim.lsp.inline_completion.get() then
+    return
+  end
+
+  return '<Tab>'
+end, {
+  expr = true,
+  desc = 'Goto/Apply Next Edit Suggestion',
 })
 
 -- vim: ts=2 sts=2 sw=2 et
