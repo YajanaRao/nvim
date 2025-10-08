@@ -2,26 +2,38 @@ return {
   {
     'saghen/blink.cmp',
     dependencies = { 'L3MON4D3/LuaSnip', version = 'v2.*' },
-    event = 'InsertEnter',
-    -- use a release tag to download pre-built binaries
+    event = { 'InsertEnter', 'CmdlineEnter' }, -- Enhanced: Load on cmdline enter
     version = 'v0.*',
 
     ---@module 'blink.cmp'
     ---@type blink.cmp.Config
     opts = {
       snippets = { preset = 'luasnip' },
-      keymap = { preset = 'default' },
+      keymap = {
+        preset = 'enter',
+        ['<C-y>'] = { 'select_and_accept' },
+      },
+
       appearance = {
-        -- Sets the fallback highlight groups to nvim-cmp's highlight groups
-        -- Useful for when your theme doesn't support blink.cmp
-        -- will be removed in a future release
-        use_nvim_cmp_as_default = true,
+        -- theme support
+        use_nvim_cmp_as_default = false,
         nerd_font_variant = 'mono',
       },
 
-      -- optionally disable cmdline completions
       cmdline = {
         enabled = true,
+        keymap = { preset = 'cmdline' },
+        completion = {
+          list = {
+            selection = { preselect = false },
+          },
+          menu = {
+            auto_show = function(ctx)
+              return vim.fn.getcmdtype() == ':'
+            end,
+          },
+          ghost_text = { enabled = true },
+        },
         sources = function()
           local type = vim.fn.getcmdtype()
           -- Search forward and backward
@@ -35,22 +47,31 @@ return {
           return {}
         end,
       },
-      -- elsewhere in your config, without redefining it, due to `opts_extend`
+
       sources = {
         default = { 'lsp', 'path', 'snippets', 'buffer' },
       },
+
       completion = {
         accept = { auto_brackets = { enabled = true } },
-        documentation = { window = { border = vim.g.borderStyle } },
+        documentation = {
+          auto_show = true,
+          auto_show_delay_ms = 200,
+          window = { border = vim.g.borderStyle },
+        },
         menu = {
           border = vim.g.borderStyle,
+          draw = {
+            treesitter = { 'lsp' },
+          },
         },
-        ghost_text = { enabled = true },
+        ghost_text = {
+          enabled = false,
+        },
       },
+
       signature = { enabled = true, window = { border = vim.g.borderStyle } },
     },
-    -- allows extending the providers array elsewhere in your config
-    -- without having to redefine it
     opts_extend = { 'sources.default' },
   },
 }
