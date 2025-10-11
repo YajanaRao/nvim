@@ -135,12 +135,12 @@ return {
               'n',
               'cc',
               function()
-                vim.ui.input({ prompt = 'Commit message: ' }, function(msg)
+                require('util.ui').input({ prompt = 'Commit message: ' }, function(msg)
                   if not msg then
                     return
                   end
                   local results = vim.system({ 'git', 'commit', '-m', msg }, { text = true }):wait()
-                  vim.notify(results.stdout, vim.log.levels.INFO, { title = 'Commit', render = 'simple' })
+                  require('util.ui').notify(results.stdout, vim.log.levels.INFO, { title = 'Commit' })
                 end)
               end,
             },
@@ -149,7 +149,7 @@ return {
               'cx',
               function()
                 local results = vim.system({ 'git', 'commit', '--amend', '--no-edit' }, { text = true }):wait()
-                vim.notify(results.stdout, vim.log.levels.INFO, { title = 'Commit amend', render = 'simple' })
+                require('util.ui').notify(results.stdout, vim.log.levels.INFO, { title = 'Commit amend' })
               end,
             },
           },
