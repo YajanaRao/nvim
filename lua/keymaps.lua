@@ -45,6 +45,25 @@ end
 -- Should automatically split or vsplit based on Ratios
 vim.keymap.set('n', '<leader>bs', split_sensibly, { desc = 'Alternate buffers' })
 
+-- Window resizing with Alt in normal & insert
+-- Normal mode direct commands
+vim.keymap.set('n', '<M-h>', '<cmd>vertical resize -2<CR>', { desc = 'Resize window narrower' })
+vim.keymap.set('n', '<M-l>', '<cmd>vertical resize +2<CR>', { desc = 'Resize window wider' })
+vim.keymap.set('n', '<M-j>', '<cmd>resize +1<CR>', { desc = 'Resize window taller' })
+vim.keymap.set('n', '<M-k>', '<cmd>resize -1<CR>', { desc = 'Resize window shorter' })
+
+-- Insert mode: temporarily leave insert, resize, return
+local function map_insert_resize(lhs, cmd)
+  vim.keymap.set('i', lhs, function()
+    local keys = vim.api.nvim_replace_termcodes('<Esc>' .. cmd .. 'i', true, false, true)
+    vim.api.nvim_feedkeys(keys, 'n', false)
+  end, { desc = 'Resize window (insert)' })
+end
+map_insert_resize('<M-h>', ':vertical resize -2<CR>')
+map_insert_resize('<M-l>', ':vertical resize +2<CR>')
+map_insert_resize('<M-j>', ':resize +1<CR>')
+map_insert_resize('<M-k>', ':resize -1<CR>')
+
 -- Movement
 -- lines and characters movemnt for normal mode
 vim.keymap.set('n', 'J', '7j')
