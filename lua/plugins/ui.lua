@@ -9,6 +9,8 @@ return {
         Warning = { ' ', 'DiagnosticWarn' },
         Normal = { ' ', 'Special' },
       }
+      opts.options = opts.options or {}
+      opts.options.globalstatus = true
       opts.sections = opts.sections or {}
       opts.sections.lualine_x = opts.sections.lualine_x or {}
       table.insert(opts.sections.lualine_x, {
