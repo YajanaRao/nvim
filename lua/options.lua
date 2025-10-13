@@ -73,5 +73,4 @@ vim.opt.foldlevel = 99
 -- views can only be fully collapsed with the global statusline
 vim.opt.laststatus = 3
 vim.opt.cmdheight = 0
-vim.opt.winbar = nil
 -- vim: ts=2 sts=2 sw=2 et
