@@ -12,7 +12,6 @@ return {
     },
     -- stylua: ignore  
     keys = {
-      -- Tab integration is now handled by blink.cmp
       {
         "<leader>aa",
         function() require("sidekick.cli").toggle() end,

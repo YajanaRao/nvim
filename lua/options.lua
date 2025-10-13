@@ -1,16 +1,11 @@
 -- [[ Setting options ]]
 -- Set <space> as the leader key
---  NOTE: Must happen before plugins are loaded (otherwise wrong leader will be used)
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
-vim.opt.title = true
--- Set to true if you have a Nerd Font installed and selected in the terminal
 vim.g.have_nerd_font = true
+vim.opt.title = true
 
--- [[ Setting options ]]
--- See `:help vim.opt`
--- NOTE: You can change these options as you wish!
---  For more options, you can see `:help option-list`
+vim.opt.termguicolors = true
 
 -- Make line numbers default
 vim.opt.number = true
@@ -44,11 +39,12 @@ vim.opt.smartcase = true
 -- Keep signcolumn on by default
 vim.opt.signcolumn = 'yes'
 
+vim.opt.smoothscroll = true
 vim.opt.updatetime = 500
 
 -- Decrease mapped sequence wait time
 -- Displays which-key popup sooner
-vim.opt.timeoutlen = 2000
+vim.opt.timeoutlen = 1000
 
 -- Configure how new splits should be opened
 vim.opt.splitright = true
@@ -76,4 +72,6 @@ vim.opt.foldlevel = 99
 
 -- views can only be fully collapsed with the global statusline
 vim.opt.laststatus = 3
+vim.opt.cmdheight = 0
+vim.opt.winbar = nil
 -- vim: ts=2 sts=2 sw=2 et

@@ -3,30 +3,27 @@ return {
     'nvim-lualine/lualine.nvim',
     event = 'VeryLazy',
     opts = function(_, opts)
-      local icons = {
-        Error = { ' ', 'DiagnosticError' },
-        Inactive = { ' ', 'MsgArea' },
-        Warning = { ' ', 'DiagnosticWarn' },
-        Normal = { ' ', 'Special' },
-      }
       opts.options = opts.options or {}
       opts.options.globalstatus = true
       opts.sections = opts.sections or {}
       opts.sections.lualine_x = opts.sections.lualine_x or {}
+      opts.sections.lualine_y = opts.sections.lualine_y or {}
       table.insert(opts.sections.lualine_x, {
         function()
-          local status = require('sidekick.status').get()
-          return status and vim.tbl_get(icons, status.kind, 1)
-        end,
-        cond = function()
-          return require('sidekick.status').get() ~= nil
+          return ' '
         end,
         color = function()
           local status = require('sidekick.status').get()
-          local hl = status and (status.busy and 'DiagnosticWarn' or vim.tbl_get(icons, status.kind, 2))
-          return { fg = Snacks.util.color(hl) }
+          if status then
+            return status.kind == 'Error' and 'DiagnosticError' or status.busy and 'DiagnosticWarn' or 'Special'
+          end
+        end,
+        cond = function()
+          local status = require 'sidekick.status'
+          return status.get() ~= nil
         end,
       })
+      opts.sections.lualine_y = { 'aerial' }
     end,
   },
   {
@@ -143,6 +140,7 @@ return {
       'MunifTanjim/nui.nvim',
     },
     opts = {
+      notify = { enabled = true }, -- Enable notify for noice
       lsp = {
         -- override markdown rendering so that **cmp** and other plugins use **Treesitter**
         override = {
@@ -153,11 +151,11 @@ return {
       },
       -- you can enable a preset for easier configuration
       presets = {
-        bottom_search = true, -- use a classic bottom cmdline for search
-        command_palette = true, -- position the cmdline and popupmenu together
-        long_message_to_split = true, -- long messages will be sent to a split
-        inc_rename = false, -- enables an input dialog for inc-rename.nvim
-        lsp_doc_border = false, -- add a border to hover docs and signature help
+        bottom_search = false,
+        command_palette = false,
+        long_message_to_split = true,
+        inc_rename = false,
+        lsp_doc_border = false,
       },
     },
   },

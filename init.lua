@@ -27,6 +27,7 @@ require('lazy').setup({
   require 'plugins.lspconfig',
   require 'plugins.snippets',
   require 'plugins.format',
+  require 'plugins.git',
 
   require 'plugins.comments',
 
@@ -35,7 +36,6 @@ require('lazy').setup({
 
   -- require 'plugins.debug',
   require 'plugins.lint',
-  require 'plugins.git',
 
   require 'plugins.ai',
   require 'plugins.colorscheme',

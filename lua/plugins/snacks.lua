@@ -10,7 +10,6 @@ return {
       image = {},
       bigfiles = {},
       dashboard = {},
-      -- notifier = {},
       explorer = {
         hidden = true,
         ignored = true,
@@ -54,7 +53,21 @@ return {
           end,
         },
       },
+      statuscolumn = {
+        left = { 'mark', 'sign' }, -- priority of signs on the left (high to low)
+        right = { 'fold', 'git' }, -- priority of signs on the right (high to low)
+        folds = {
+          open = false,
+          git_hl = false,
+        },
+        git = {
+          -- patterns to match Git signs
+          patterns = { 'GitSign' },
+        },
+        refresh = 50, -- refresh at most every 50ms
+      },
       words = {},
+      scope = {},
     },
     keys = {
       {
