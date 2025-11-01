@@ -66,16 +66,12 @@ map_insert_resize('<M-k>', ':resize -1<CR>')
 
 -- Movement
 -- lines and characters movemnt for normal mode
-vim.keymap.set('n', 'J', '7j')
-vim.keymap.set('n', 'K', '7k')
 vim.keymap.set('n', 'H', '^')
 vim.keymap.set('n', 'L', '$')
 vim.keymap.set('n', '<C-d>', '<C-d>zz', { desc = 'Move half page down with centered cursor' })
 vim.keymap.set('n', '<C-u>', '<C-u>zz', { desc = 'Move half page up with centered cursor' })
 
 -- lines and characters movemnt for visual mode
-vim.keymap.set('v', 'J', '7j')
-vim.keymap.set('v', 'K', '7k')
 vim.keymap.set('v', 'L', '25l')
 vim.keymap.set('v', 'H', '25h')
 
@@ -114,6 +110,8 @@ vim.api.nvim_create_autocmd('TextYankPost', {
     vim.highlight.on_yank()
   end,
 })
+
+vim.keymap.set('n', 'x', '"_x')
 
 -- Sidekick NES Tab integration
 vim.keymap.set({ 'i', 'n' }, '<Tab>', function()

@@ -12,11 +12,9 @@ return {
     enabled = true,
     lazy = false,
     priority = 1000,
-    config = function()
-      require('forestflower').setup {
-        flavour = 'night',
-        italics = true,
-      }
-    end,
+    opts = {
+      diagnostic_text_highlight = true,
+      diagnostic_line_highlight = true, -- Enable ErrorLine, WarningLine, InfoLine, HintLine
+    },
   },
 }

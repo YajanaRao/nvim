@@ -285,6 +285,13 @@ return {
         end,
         desc = 'Clipboard History',
       },
+      {
+        '<leader>sH',
+        function()
+          Snacks.picker.highlights()
+        end,
+        desc = 'Highlights',
+      },
       -- LSP
       {
         'gd',

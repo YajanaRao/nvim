@@ -47,9 +47,9 @@ return {
         desc = "Sidekick Switch Focus",
       },
       {
-        "<leader>ac",
-        function() require("sidekick.cli").toggle({ name = "claude", focus = true }) end,
-        desc = "Sidekick Toggle Claude",
+        "<leader>ao",
+        function() require("sidekick.cli").toggle({ name = "opencode", focus = true }) end,
+        desc = "Sidekick Toggle Opencode",
       },
     },
   },
