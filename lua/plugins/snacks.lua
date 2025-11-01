@@ -15,6 +15,7 @@ return {
         ignored = true,
         replace_netrw = true,
       },
+      gh = {},
       picker = {
         grep = {
           command = { 'rg', '--vimgrep', '--smart-case' }, -- Use --smart-case or -i
@@ -145,13 +146,20 @@ return {
         end,
         desc = 'Git Branches',
       },
-
       {
         '<leader>gd',
         function()
           Snacks.picker.git_diff()
         end,
         desc = 'Git Diff (Hunks)',
+      },
+
+      {
+        '<leader>gp',
+        function()
+          Snacks.picker.gh_pr()
+        end,
+        desc = 'GitHub Pull Requests (open)',
       },
       -- find
       {
