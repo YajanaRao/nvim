@@ -10,33 +10,69 @@ return {
         title = false,
         filter = { range = true },
         format = '{kind_icon}{symbol.name:Normal}',
-        -- The following line is needed to fix the background color
-        -- Set it to the lualine section you want to use
         hl_group = 'lualine_c_normal',
       }
       opts.options = opts.options or {}
+      opts.disabled_filetypes = { statusline = { 'dashboard', 'alpha', 'ministarter', 'snacks_dashboard' } }
       opts.options.globalstatus = true
       opts.sections = opts.sections or {}
+      opts.sections.lualine_c = opts.sections.lualine_c or {}
       opts.sections.lualine_x = opts.sections.lualine_x or {}
       opts.sections.lualine_y = opts.sections.lualine_y or {}
-      table.insert(opts.sections.lualine_x, {
+      opts.sections.lualine_c = {
+        { 'filetype', icon_only = true, separator = '', padding = { left = 1, right = 0 } },
+        {
+          'filename',
+          path = 1,
+        },
+      }
+      opts.sections.lualine_x = {
+        {
+          require('noice').api.status.message.get_hl,
+          cond = require('noice').api.status.message.has,
+        },
+        {
+          require('noice').api.status.command.get,
+          cond = require('noice').api.status.command.has,
+          color = "DiagnosticWarn",
+        },
+        {
+          require('noice').api.status.mode.get,
+          cond = require('noice').api.status.mode.has,
+          color = "DiagnosticWarn",
+        },
+        {
+          require('noice').api.status.search.get,
+          cond = require('noice').api.status.search.has,
+          color = "DiagnosticWarn",
+        },
+      }
+      table.insert(opts.sections.lualine_c, {
+        symbols.get,
+        cond = symbols.has,
+      })
+      table.insert(opts.sections.lualine_y, {
         function()
           return ' '
         end,
         color = function()
           local status = require('sidekick.status').get()
           if status then
-            return status.kind == 'Error' and 'DiagnosticError' or status.busy and 'DiagnosticWarn' or 'Special'
+            -- Use colorscheme's diagnostic line highlight groups
+            if status.kind == 'Error' then
+              return 'ErrorLine'
+            elseif status.busy then
+              return 'WarningLine'
+            else
+              return 'InfoLine'
+            end
           end
+          return nil
         end,
         cond = function()
           local status = require 'sidekick.status'
           return status.get() ~= nil
         end,
-      })
-      table.insert(opts.sections.lualine_y, {
-        symbols.get,
-        cond = symbols.has,
       })
     end,
   },
@@ -162,6 +198,13 @@ return {
           ['vim.lsp.util.stylize_markdown'] = true,
           ['cmp.entry.get_documentation'] = true, -- requires hrsh7th/nvim-cmp
         },
+      },
+      hover = {
+        enabled = true,
+        silent = false, -- set to true to not show a message if hover is not available
+        view = nil, -- when nil, use defaults from documentation
+        ---@type NoiceViewOptions
+        opts = {}, -- merged with defaults from documentation
       },
       -- you can enable a preset for easier configuration
       presets = {
