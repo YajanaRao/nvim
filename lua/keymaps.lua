@@ -113,20 +113,4 @@ vim.api.nvim_create_autocmd('TextYankPost', {
 
 vim.keymap.set('n', 'x', '"_x')
 
--- Sidekick NES Tab integration
-vim.keymap.set({ 'i', 'n' }, '<Tab>', function()
-  if require('sidekick').nes_jump_or_apply() then
-    return
-  end
-
-  if vim.lsp.inline_completion and vim.lsp.inline_completion.get and vim.lsp.inline_completion.get() then
-    return
-  end
-
-  return '<Tab>'
-end, {
-  expr = true,
-  desc = 'Goto/Apply Next Edit Suggestion',
-})
-
 -- vim: ts=2 sts=2 sw=2 et

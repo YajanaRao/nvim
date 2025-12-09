@@ -1,6 +1,6 @@
 {
   "Log to the console": {
-    "prefix": "log",
+    "prefix": ["log", "clg"],
     "body": ["console.log($1);"],
     "description": "Log to the console"
   },

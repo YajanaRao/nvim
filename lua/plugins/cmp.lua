@@ -10,7 +10,37 @@ return {
     opts = {
       snippets = { preset = 'luasnip' },
       keymap = {
-        preset = 'default',
+        ['<C-n>'] = { 'select_next', 'fallback' },
+        ['<C-p>'] = { 'select_prev', 'fallback' },
+        ['<C-y>'] = { 'accept', 'fallback' },
+        ['<C-e>'] = { 'hide', 'fallback' },
+        ['<S-Tab>'] = { 'snippet_backward', 'fallback' },
+        -- Tab: NES > LSP inline > snippet > fallback
+        ['<Tab>'] = {
+          function()
+            local ok, result = pcall(require('sidekick').nes_jump_or_apply)
+            if ok and result then
+              return true
+            end
+
+            if vim.lsp.inline_completion then
+              ok, result = pcall(vim.lsp.inline_completion.get)
+              if ok and result then
+                pcall(vim.lsp.inline_completion.accept)
+                return true
+              end
+            end
+
+            ok, result = pcall(require, 'luasnip')
+            if ok and result.locally_jumpable(1) then
+              result.jump(1)
+              return true
+            end
+
+            return false
+          end,
+          'fallback',
+        },
       },
 
       appearance = {
