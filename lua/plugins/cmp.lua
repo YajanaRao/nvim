@@ -15,29 +15,26 @@ return {
         ['<C-y>'] = { 'accept', 'fallback' },
         ['<C-e>'] = { 'hide', 'fallback' },
         ['<S-Tab>'] = { 'snippet_backward', 'fallback' },
-        -- Tab: NES > LSP inline > snippet > fallback
+        -- Tab: NES > snippet > LSP inline > fallback
         ['<Tab>'] = {
-          function()
-            local ok, result = pcall(require('sidekick').nes_jump_or_apply)
-            if ok and result then
-              return true
+          function(cmp)
+            -- Try NES jump or apply first
+            if require('sidekick').nes_jump_or_apply() then
+              return true -- stop processing, NES handled it
             end
-
+            -- Return nil/false to continue to next command (snippet_forward)
+          end,
+          'snippet_forward', -- blink.cmp snippet handling
+          function(cmp)
+            -- Try LSP inline completion
             if vim.lsp.inline_completion then
-              ok, result = pcall(vim.lsp.inline_completion.get)
+              local ok, result = pcall(vim.lsp.inline_completion.get)
               if ok and result then
                 pcall(vim.lsp.inline_completion.accept)
                 return true
               end
             end
-
-            ok, result = pcall(require, 'luasnip')
-            if ok and result.locally_jumpable(1) then
-              result.jump(1)
-              return true
-            end
-
-            return false
+            -- Return nil to fallback
           end,
           'fallback',
         },
