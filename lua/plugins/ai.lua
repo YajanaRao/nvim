@@ -12,6 +12,21 @@ return {
     },
     -- stylua: ignore  
     keys = {
+      -- Tab: NES completion (highest priority)
+      {
+        "<Tab>",
+        function()
+          -- Try NES jump or apply
+          if require('sidekick').nes_jump_or_apply() then
+            return -- NES handled it, stop here
+          end
+          -- NES didn't handle it, return Tab key to let blink.cmp process it
+          return "<Tab>"
+        end,
+        mode = "i", -- Insert mode only
+        expr = true, -- Expression mapping - returns keys to execute
+        desc = "NES: Jump/Apply or fallback to completion",
+      },
       {
         "<leader>aa",
         function() require("sidekick.cli").toggle() end,
