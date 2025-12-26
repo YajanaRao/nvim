@@ -13,6 +13,18 @@ return {
     -- stylua: ignore  
     keys = {
       {
+        "<tab>",
+        function()
+          if require("sidekick").nes_jump_or_apply() then
+            return
+          end
+          return "<Tab>"
+        end,
+        mode = { "n" },
+        expr = true,
+        desc = "Apply NES Suggestion",
+      },
+      {
         "<leader>aa",
         function() require("sidekick.cli").toggle() end,
         desc = "Sidekick Toggle CLI",
