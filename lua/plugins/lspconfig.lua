@@ -119,13 +119,6 @@ return {
     config = function(_, opts)
       vim.diagnostic.config(opts.diagnostics)
 
-      vim.lsp.config('copilot', {
-        cmd = { 'copilot-language-server', '--stdio' },
-        root_markers = { '.git' },
-      })
-      vim.lsp.enable 'copilot'
-      vim.lsp.inline_completion.enable()
-
       local capabilities = require('blink.cmp').get_lsp_capabilities()
 
       capabilities.textDocument.completion.completionItem.snippetSupport = true
@@ -137,6 +130,14 @@ return {
         didRename = true, -- File rename notifications
         willRename = true, -- Pre-rename notifications
       }
+
+      -- Setup Copilot LSP (for inline AI completions)
+      vim.lsp.config('copilot', {
+        cmd = { 'copilot-language-server', '--stdio' },
+        root_markers = { '.git' },
+        capabilities = capabilities,
+      })
+      vim.lsp.enable 'copilot'
 
       -- Setup Mason
       require('mason').setup()
@@ -184,9 +185,26 @@ return {
             end
           end
 
-          -- Inline completion
+          -- Inline completion (for Copilot AI suggestions)
           if client and client:supports_method(vim.lsp.protocol.Methods.textDocument_inlineCompletion, event.buf) then
             vim.lsp.inline_completion.enable(true, { bufnr = event.buf })
+
+            -- Keymaps for inline completion (per official Neovim 0.12 docs)
+            -- vim.lsp.inline_completion.get() returns false if no completion, else accepts it
+            vim.keymap.set('i', '<Tab>', function()
+              if not vim.lsp.inline_completion.get() then
+                return '<Tab>'
+              end
+            end, { buffer = event.buf, expr = true, desc = 'LSP: Accept inline completion' })
+
+            -- Cycle through inline completion candidates
+            vim.keymap.set('i', '<M-]>', function()
+              vim.lsp.inline_completion.select({ count = 1 })
+            end, { buffer = event.buf, desc = 'LSP: Next inline completion' })
+
+            vim.keymap.set('i', '<M-[>', function()
+              vim.lsp.inline_completion.select({ count = -1 })
+            end, { buffer = event.buf, desc = 'LSP: Prev inline completion' })
           end
 
           -- Code lens

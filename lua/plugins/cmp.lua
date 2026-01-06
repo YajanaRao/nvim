@@ -19,10 +19,10 @@ return {
           function()
             return require('sidekick').nes_jump_or_apply()
           end,
-          'snippet_forward',
           function()
             return vim.lsp.inline_completion.get()
           end,
+          'snippet_forward',
           'fallback',
         },
       },
