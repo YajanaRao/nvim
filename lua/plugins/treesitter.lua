@@ -1,27 +1,57 @@
 return {
-  { -- Highlight, edit, and navigate code
+  {
     'nvim-treesitter/nvim-treesitter',
+    branch = 'main',
     dependencies = {
       'nvim-treesitter/nvim-treesitter-context',
     },
-    build = ':TSUpdate',
-    main = 'nvim-treesitter.configs', -- Sets main module to use for opts
-    -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
+    build = function()
+      require('nvim-treesitter').update(nil, { summary = true })
+    end,
+    event = { 'BufReadPost', 'BufNewFile', 'VeryLazy' },
+    cmd = { 'TSUpdate', 'TSInstall', 'TSLog', 'TSUninstall' },
     opts = {
-      ensure_installed = { 'bash', 'c', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'html', 'css', 'scss', 'javascript', 'typescript' },
-      -- Autoinstall languages that are not installed
-      auto_install = true,
-      highlight = {
-        enable = true,
-        -- Some languages depend on vim's regex highlighting system (such as Ruby) for indent rules.
-        --  If you are experiencing weird indenting issues, add the language to
-        --  the list of additional_vim_regex_highlighting and disabled languages for indent.
-        additional_vim_regex_highlighting = { 'ruby' },
-      },
-      indent = { enable = true, disable = { 'ruby' } },
+      ensure_installed = { 'bash', 'c', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc', 'html', 'css', 'scss', 'javascript', 'typescript' },
+      highlight = { enable = true },
+      indent = { enable = true },
     },
-    --    - Incremental selection: Included, see `:help nvim-treesitter-incremental-selection-mod`
-    --    - Show your current context: https://github.com/nvim-treesitter/nvim-treesitter-context
-    --    - Treesitter + textobjects: https://github.com/nvim-treesitter/nvim-treesitter-textobjects
+    config = function(_, opts)
+      local TS = require('nvim-treesitter')
+      TS.setup(opts)
+
+      -- Install missing parsers
+      if TS.get_installed then
+        local install = vim.tbl_filter(function(lang)
+          return not vim.tbl_contains(TS.get_installed(), lang)
+        end, opts.ensure_installed or {})
+        if #install > 0 then
+          TS.install(install, { summary = true })
+        end
+      end
+
+      vim.api.nvim_create_autocmd('FileType', {
+        group = vim.api.nvim_create_augroup('custom_treesitter', { clear = true }),
+        callback = function(ev)
+          local lang = vim.treesitter.language.get_lang(ev.match)
+          if not lang then
+            return
+          end
+
+          local has_parser = pcall(vim.treesitter.language.inspect, lang)
+          if not has_parser then
+            return
+          end
+
+          -- highlighting
+          if opts.highlight and opts.highlight.enable ~= false then
+            pcall(vim.treesitter.start, ev.buf)
+          end
+
+          -- folds
+          vim.wo[0][0].foldmethod = 'expr'
+          vim.wo[0][0].foldexpr = 'v:lua.vim.treesitter.foldexpr()'
+        end,
+      })
+    end,
   },
 }

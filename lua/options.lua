@@ -67,8 +67,6 @@ vim.opt.cursorline = true
 vim.opt.scrolloff = 10
 
 -- Fold
-vim.opt.foldmethod = 'indent'
-vim.opt.foldexpr = 'nvim_treesitter#foldexpr()'
 vim.opt.foldlevel = 99
 
 -- views can only be fully collapsed with the global statusline

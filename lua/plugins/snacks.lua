@@ -69,6 +69,13 @@ return {
       },
       words = {},
       scope = {},
+      scroll = {
+        animate = {
+          duration = { step = 15, total = 250 },
+          easing = "linear",
+        },
+        spamming = 10, -- threshold for spamming detection
+      },
     },
     keys = {
       {
