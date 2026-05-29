@@ -1,67 +1,29 @@
+vim.loader.enable()
+
 require 'options'
 require 'keymaps'
 
---    See `:help lazy.nvim.txt` or https://github.com/folke/lazy.nvim for more info
-local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
-if not (vim.uv or vim.loop).fs_stat(lazypath) then
-  local lazyrepo = 'https://github.com/folke/lazy.nvim.git'
-  local out = vim.fn.system { 'git', 'clone', '--filter=blob:none', '--branch=stable', lazyrepo, lazypath }
-  if vim.v.shell_error ~= 0 then
-    error('Error cloning lazy.nvim:\n' .. out)
-  end
-end ---@diagnostic disable-next-line: undefined-field
-vim.opt.rtp:prepend(lazypath)
+-- mini.nvim must be loaded before plugin/ files run (alphabetical order means
+-- cmp.lua and lspconfig.lua load before mini.lua and need mini.completion).
 
---
-require('lazy').setup({
-  'tpope/vim-sleuth',
+vim.pack.add { 'https://github.com/nvim-mini/mini.nvim' }
 
-  require 'plugins.ui',
-  require 'plugins.editor',
-  require 'plugins.mini',
-  require 'plugins.snacks',
-
-  -- Completion Plugins
-  require 'plugins.cmp',
-
-  require 'plugins.lspconfig',
-  require 'plugins.snippets',
-  require 'plugins.format',
-  require 'plugins.git',
-
-  require 'plugins.comments',
-
-  -- Treesitter
-  require 'plugins.treesitter',
-
-  -- require 'plugins.debug',
-  require 'plugins.lint',
-
-  require 'plugins.ai',
-  require 'plugins.colorscheme',
-}, {
-  ui = {
-    -- If you are using a Nerd Font: set icons to an empty table which will use the
-    -- default lazy.nvim defined Nerd Font icons, otherwise define a unicode icons table
-    icons = vim.g.have_nerd_font and {} or {
-      cmd = '⌘',
-      config = '🛠',
-      event = '📅',
-      ft = '📂',
-      init = '⚙',
-      keys = '🗝',
-      plugin = '🔌',
-      runtime = '💻',
-      require = '🌙',
-      source = '📄',
-      start = '🚀',
-      task = '📌',
-      lazy = '💤 ',
-    },
-  },
-})
-
+vim.opt.runtimepath:prepend '~/Developer/forestflower'
+require('forestflower').setup {
+  diagnostic_text_highlight = true,
+  diagnostic_line_highlight = true,
+  transparent_background_level = 2,
+}
 vim.cmd.colorscheme 'forestflower'
 
--- The line beneath this is called `modeline`. See `:help modeline`
--- vim: ts=2 sts=2 sw=2 et
+-- Experimental built-in message + cmdline UI (Neovim 0.13+)
+require('vim._core.ui2').enable {
+  enable = true,
+  msg = {
+    targets = 'cmd',
+    cmd = { height = 0.5 },
+    dialog = { height = 0.5 },
+    msg = { height = 0.5, timeout = 4000 },
+    pager = { height = 1 },
+  },
+}

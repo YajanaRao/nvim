@@ -6,8 +6,6 @@ vim.g.have_nerd_font = true
 vim.g.borderStyle = 'rounded'
 vim.opt.title = true
 
-vim.opt.termguicolors = true
-
 -- Make line numbers default
 vim.opt.number = true
 -- You can also add relative line numbers, to help with jumping.
@@ -18,6 +16,7 @@ vim.opt.mouse = 'a'
 
 -- Don't show the mode, since it's already in the status line
 vim.opt.showmode = false
+vim.o.shortmess = 'CFOSWaco'
 
 -- Sync clipboard between OS and Neovim.
 --  Schedule the setting after `UiEnter` because it can increase startup-time.
@@ -44,7 +43,6 @@ vim.opt.smoothscroll = true
 vim.opt.updatetime = 500
 
 -- Decrease mapped sequence wait time
--- Displays which-key popup sooner
 vim.opt.timeoutlen = 1000
 
 -- Configure how new splits should be opened
@@ -66,10 +64,18 @@ vim.opt.cursorline = true
 -- Minimal number of screen lines to keep above and below the cursor.
 vim.opt.scrolloff = 10
 
+-- Popup menu
+vim.opt.pumheight = 10
+vim.o.pumborder = 'single'
+vim.o.pummaxwidth = 100
+
 -- Fold
 vim.opt.foldlevel = 99
 
 -- views can only be fully collapsed with the global statusline
 vim.opt.laststatus = 3
 vim.opt.cmdheight = 0
+vim.o.winborder = 'single'
+
+
 -- vim: ts=2 sts=2 sw=2 et

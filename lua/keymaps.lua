@@ -5,7 +5,7 @@
 vim.keymap.set('i', 'jk', '<Esc>')
 vim.keymap.set('i', 'jj', '<Esc>')
 
--- save file
+-- Save file
 vim.keymap.set({ 'i', 'x', 'n', 's' }, '<C-s>', '<cmd>w<cr><esc>', { desc = 'Save File' })
 
 -- Smart delete
@@ -45,13 +45,7 @@ end
 -- Should automatically split or vsplit based on Ratios
 vim.keymap.set('n', '<leader>bs', split_sensibly, { desc = 'Alternate buffers' })
 
--- Window resizing with Alt in normal & insert
--- Normal mode direct commands
-vim.keymap.set('n', '<M-h>', '<cmd>vertical resize -2<CR>', { desc = 'Resize window narrower' })
-vim.keymap.set('n', '<M-l>', '<cmd>vertical resize +2<CR>', { desc = 'Resize window wider' })
-vim.keymap.set('n', '<M-j>', '<cmd>resize +1<CR>', { desc = 'Resize window taller' })
-vim.keymap.set('n', '<M-k>', '<cmd>resize -1<CR>', { desc = 'Resize window shorter' })
-
+-- Window resizing with Alt in insert mode (normal-mode Alt+hjkl is used by mini.move)
 -- Insert mode: temporarily leave insert, resize, return
 local function map_insert_resize(lhs, cmd)
   vim.keymap.set('i', lhs, function()
@@ -81,11 +75,6 @@ vim.keymap.set('n', 'N', 'Nzzzv', { desc = 'Search backwards with centered resul
 
 -- Write in normal mode
 vim.keymap.set('n', '<leader>w', ':w<CR>', { noremap = true, silent = true })
-vim.keymap.set({ 'i', 'x', 'n', 's' }, '<C-s>', '<cmd>w<cr><esc>', { desc = 'Save File' })
-
--- TODO: figure out what does this do
-vim.keymap.set('n', '<leader>j', '<cmd>lprev<CR>zz')
-vim.keymap.set('n', '<leader>k', '<cmd>lnext<CR>zz')
 
 -- Clear highlights on search when pressing <Esc> in normal mode
 --  See `:help hlsearch`
@@ -97,17 +86,15 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
 -- is not what someone will guess without a bit more experience.
--- NOTE: This won't work in all terminal emulators/tmux/etc. Try your own mapping
--- or just use <C-\><C-n> to exit terminal mode
 vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
 
 -- Highlight when yanking (copying) text
 --  Try it with `yap` in normal mode
 vim.api.nvim_create_autocmd('TextYankPost', {
-  desc = 'Highlight when yanking (copying) text',
+  desc = 'Highlight when yanking text',
   group = vim.api.nvim_create_augroup('kickstart-highlight-yank', { clear = true }),
   callback = function()
-    vim.highlight.on_yank()
+    vim.hl.on_yank()
   end,
 })
 
