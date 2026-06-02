@@ -4,16 +4,16 @@ package.preload['nvim-web-devicons'] = function()
   return package.loaded['nvim-web-devicons']
 end
 
-local ai = require('mini.ai')
-ai.setup({
+local ai = require 'mini.ai'
+ai.setup {
   n_lines = 500,
   custom_textobjects = {
-    o = ai.gen_spec.treesitter({
+    o = ai.gen_spec.treesitter {
       a = { '@block.outer', '@conditional.outer', '@loop.outer' },
       i = { '@block.inner', '@conditional.inner', '@loop.inner' },
-    }),
-    f = ai.gen_spec.treesitter({ a = '@function.outer', i = '@function.inner' }),
-    c = ai.gen_spec.treesitter({ a = '@class.outer', i = '@class.inner' }),
+    },
+    f = ai.gen_spec.treesitter { a = '@function.outer', i = '@function.inner' },
+    c = ai.gen_spec.treesitter { a = '@class.outer', i = '@class.inner' },
     t = { '<([%p%w]-)%f[^<%w][^<>]->.-</%1>', '^<.->().*()</[^/]->$' },
     d = { '%f[%d]%d+' },
     e = {
@@ -21,9 +21,9 @@ ai.setup({
       '^().*()$',
     },
     u = ai.gen_spec.function_call(),
-    U = ai.gen_spec.function_call({ name_pattern = '[%w_]' }),
+    U = ai.gen_spec.function_call { name_pattern = '[%w_]' },
   },
-})
+}
 
 require('mini.icons').setup()
 MiniIcons.tweak_lsp_kind()
@@ -31,7 +31,7 @@ require('mini.surround').setup()
 require('mini.pairs').setup()
 require('mini.bracketed').setup()
 require('mini.tabline').setup()
-require('mini.move').setup({
+require('mini.move').setup {
   mappings = {
     left = '<M-h>',
     right = '<M-l>',
@@ -42,10 +42,10 @@ require('mini.move').setup({
     line_down = '<M-j>',
     line_up = '<M-k>',
   },
-})
+}
 
-local hipatterns = require('mini.hipatterns')
-hipatterns.setup({
+local hipatterns = require 'mini.hipatterns'
+hipatterns.setup {
   highlighters = {
     fixme = { pattern = '%f[%w]()FIXME()%f[%W]', group = 'MiniHipatternsFixme' },
     hack = { pattern = '%f[%w]()HACK()%f[%W]', group = 'MiniHipatternsHack' },
@@ -53,14 +53,14 @@ hipatterns.setup({
     note = { pattern = '%f[%w]()NOTE()%f[%W]', group = 'MiniHipatternsNote' },
     hex_color = hipatterns.gen_highlighter.hex_color(),
   },
-})
+}
 
-require('mini.files').setup({
+require('mini.files').setup {
   mappings = {
     go_in = 'L',
     go_in_plus = 'l',
   },
-})
+}
 
 vim.keymap.set('n', '<leader>e', function()
   MiniFiles.open(vim.api.nvim_buf_get_name(0))
@@ -78,8 +78,10 @@ require('mini.jump').setup()
 
 require('mini.jump2d').setup()
 
-local miniclue = require('mini.clue')
-miniclue.setup({
+require('mini.diff').setup()
+
+local miniclue = require 'mini.clue'
+miniclue.setup {
   triggers = {
     { mode = 'n', keys = '<Leader>' },
     { mode = 'x', keys = '<Leader>' },
@@ -122,4 +124,4 @@ miniclue.setup({
     delay = 300,
     config = { width = 'auto' },
   },
-})
+}

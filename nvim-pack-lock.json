@@ -44,7 +44,7 @@
     },
     "mini.nvim": {
       "rev": "6a8aab4b07c6caa1d0643c1c9dccd5b2d5f5e094",
-      "src": "https://github.com/echasnovski/mini.nvim"
+      "src": "https://github.com/nvim-mini/mini.nvim"
     },
     "noice.nvim": {
       "rev": "7bfd942445fb63089b59f97ca487d605e715f155",

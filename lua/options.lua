@@ -38,6 +38,7 @@ vim.opt.smartcase = true
 
 -- Keep signcolumn on by default
 vim.opt.signcolumn = 'yes'
+vim.opt.numberwidth = 4
 
 vim.opt.smoothscroll = true
 vim.opt.updatetime = 500
@@ -77,5 +78,7 @@ vim.opt.laststatus = 3
 vim.opt.cmdheight = 0
 vim.o.winborder = 'single'
 
+-- truecolors
+vim.opt.termguicolors = true
 
 -- vim: ts=2 sts=2 sw=2 et

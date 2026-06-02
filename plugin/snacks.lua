@@ -1,6 +1,9 @@
 vim.pack.add { 'https://github.com/folke/snacks.nvim' }
 
 require('snacks').setup {
+  styles = {
+    lazygit = { height = 0, width = 0 },
+  },
   lazygit = {},
   indent = {},
   image = {},
@@ -217,7 +220,7 @@ map('n', '<leader>tt', function()
 end, { desc = 'Terminal' })
 
 map('n', '<leader>td', function()
-  Snacks.scratch { icon = ' ', name = 'Todo', ft = 'markdown', file = '~/Documents/Notes/To Do/TODO.md' }
+  Snacks.scratch { icon = ' ', name = 'Todo', ft = 'text', file = '~/Documents/Notes/To Do/TODO.md' }
 end, { desc = 'Todo' })
 
 map({ 'n', 't' }, ']]', function()

@@ -9,15 +9,17 @@ vim.api.nvim_create_autocmd({ 'BufReadPre', 'BufNewFile' }, {
 
     -- Auto-install linters via Mason
     require('mason-nvim-lint').setup({
-      ensure_installed = { 'markdownlint', 'eslint_d' },
+      ensure_installed = { 'markdownlint', 'oxlint' },
       automatic_installation = true,
     })
 
     local lint = require('lint')
     lint.linters_by_ft = {
       markdown = { 'markdownlint' },
-      javascript = { 'eslint_d' },
-      typescript = { 'eslint_d' },
+      javascript = { 'oxlint' },
+      javascriptreact = { 'oxlint' },
+      typescript = { 'oxlint' },
+      typescriptreact = { 'oxlint' },
     }
 
     local lint_augroup = vim.api.nvim_create_augroup('lint', { clear = true })
