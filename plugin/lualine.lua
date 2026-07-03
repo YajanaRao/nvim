@@ -5,21 +5,26 @@ vim.schedule(function()
   local trouble_ok, trouble = pcall(require, 'trouble')
   local symbols_component = {}
   if trouble_ok then
-    local symbols = trouble.statusline({
+    local symbols = trouble.statusline {
       mode = 'lsp_document_symbols',
       groups = {},
       title = false,
-      filter = { range = true },
+      filter = { range = true, ['not'] = { ['symbol.name'] = 'import' } },
       format = '{kind_icon}{symbol.name:Normal}',
       hl_group = 'lualine_c_normal',
-    })
+    }
     symbols_component = {
       symbols.get,
       cond = symbols.has,
     }
   end
 
-  require('lualine').setup({
+  local function sidekick_status()
+    local ok, status = pcall(require, 'sidekick.status')
+    return ok and status or nil
+  end
+
+  require('lualine').setup {
     options = {
       globalstatus = true,
     },
@@ -31,39 +36,34 @@ vim.schedule(function()
         symbols_component,
       },
       lualine_x = {
-        { 'filetype' },
-      },
-      lualine_y = {
+        'searchcount',
         {
           function()
-            return ' '
+            return ' '
           end,
           color = function()
-            local ok, status = pcall(require, 'sidekick.status')
-            if not ok then return end
+            local status = sidekick_status()
+            if not status then
+              return
+            end
             local s = status.get()
-            if not s then return end
-            return s.kind == 'Error' and 'DiagnosticError' or s.busy and 'DiagnosticWarn'
+            if not s then
+              return
+            end
+            return s.kind == 'Error' and 'DiagnosticError' or s.busy and 'DiagnosticWarn' or 'Special'
           end,
           cond = function()
-            local ok, status = pcall(require, 'sidekick.status')
-            return ok and status.get() ~= nil
+            local status = sidekick_status()
+            return status ~= nil and status.get() ~= nil
           end,
         },
         {
-          function()
-            local ok, status = pcall(require, 'sidekick.status')
-            if not ok then return '' end
-            local sessions = status.cli()
-            return ' ' .. (#sessions > 1 and #sessions or '')
-          end,
-          cond = function()
-            local ok, status = pcall(require, 'sidekick.status')
-            return ok and #status.cli() > 0
-          end,
-          color = 'Special',
+          'diagnostics',
+          sources = { 'nvim_diagnostic' },
+          symbols = { error = ' ', warn = ' ', info = ' ', hint = ' ' },
         },
       },
+      lualine_y = {},
     },
-  })
+  }
 end)

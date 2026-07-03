@@ -4,7 +4,21 @@ require('snacks').setup {
   styles = {
     lazygit = { height = 0, width = 0 },
   },
-  lazygit = {},
+  lazygit = {
+    -- lazygit's default nvim edit preset does `--remote-send "q"` to quit
+    -- lazygit before opening the file. In a Snacks *float* that keystroke
+    -- gets fed back into the lazygit terminal while lazygit is still blocked
+    -- on the edit subprocess -> hang. Open in the parent nvim asynchronously
+    -- instead (no q round-trip); close the float yourself with `q`.
+    config = {
+      os = {
+        edit = 'nvim --server "$NVIM" --remote-tab-silent {{filename}}',
+        editAtLine = 'nvim --server "$NVIM" --remote-tab-silent {{filename}}',
+        editAtLineAndWait = 'nvim +{{line}} {{filename}}',
+        openDirInEditor = 'nvim --server "$NVIM" --remote-tab-silent {{dir}}',
+      },
+    },
+  },
   indent = {},
   image = {},
   bigfiles = {},

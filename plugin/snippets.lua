@@ -2,8 +2,14 @@ local gen_loader = require('mini.snippets').gen_loader
 
 require('mini.snippets').setup({
   snippets = {
-    -- Load language-specific files from snippets/<lang>.json in runtimepath
-    gen_loader.from_lang(),
+    -- Load language-specific files from snippets/<lang>.json in runtimepath.
+    -- Map React filetypes to also pick up the base ts/js snippet files.
+    gen_loader.from_lang({
+      lang_patterns = {
+        tsx = { 'typescript.json', 'tsx.json' },
+        jsx = { 'javascript.json', 'jsx.json' },
+      },
+    }),
   },
 })
 
