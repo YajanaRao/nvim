@@ -22,6 +22,12 @@ require('snacks').setup {
   indent = {},
   image = {},
   bigfiles = {},
+  -- Route vim.notify through Snacks: non-blocking corner toasts (gh workflow
+  -- start/success/failure, LSP, etc.), browsable via <leader>n.
+  notifier = {
+    timeout = 3000,
+    style = 'compact',
+  },
   dashboard = {
     preset = {
       pick = nil,
