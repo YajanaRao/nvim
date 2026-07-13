@@ -76,6 +76,12 @@ vim.opt.foldlevel = 99
 -- views can only be fully collapsed with the global statusline
 vim.opt.laststatus = 3
 vim.opt.cmdheight = 0
+
+-- Progress messages (nvim_echo kind='progress') already surface via the
+-- statusline section (vim.ui.progress_status()) and the terminal progress bar,
+-- so keep them out of the cmdline — otherwise a long task flashes a message on
+-- every update. Drops the "c" from the default "…,progress:c".
+vim.o.messagesopt = 'hit-enter,history:500,progress:'
 vim.o.winborder = 'single'
 
 -- truecolors

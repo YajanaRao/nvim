@@ -224,8 +224,16 @@ map('n', '<leader>tf', function()
 end, { desc = 'Terminal Float' })
 
 map('n', '<leader>tt', function()
+  -- Only reuse plain :terminal buffers. Sidekick CLIs (sidekick_terminal) and
+  -- Snacks terminals/lazygit (snacks_terminal) are also buftype=terminal but
+  -- should never be surfaced here.
+  local managed = { sidekick_terminal = true, snacks_terminal = true }
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.bo[buf].buftype == 'terminal' and vim.api.nvim_buf_is_loaded(buf) then
+    if
+      vim.bo[buf].buftype == 'terminal'
+      and not managed[vim.bo[buf].filetype]
+      and vim.api.nvim_buf_is_loaded(buf)
+    then
       vim.api.nvim_set_current_buf(buf)
       return
     end

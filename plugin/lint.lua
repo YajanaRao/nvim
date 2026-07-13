@@ -14,6 +14,12 @@ vim.api.nvim_create_autocmd({ 'BufReadPre', 'BufNewFile' }, {
     })
 
     local lint = require('lint')
+    -- Markdown notes are authored for readability, not rigid line-length / URL rules
+    lint.linters.markdownlint.args = {
+      '--disable', 'MD013', 'MD034',
+      '--stdin',
+      '--',
+    }
     lint.linters_by_ft = {
       markdown = { 'markdownlint' },
       javascript = { 'oxlint' },
