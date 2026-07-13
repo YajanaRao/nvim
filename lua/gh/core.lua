@@ -372,51 +372,142 @@ function M.ghb(tab, on_done)
   end)
 end
 
-----------------------------------------------------------------------
--- Workflow selection (shared by ghwl, ghwr, ghws)
-----------------------------------------------------------------------
-
--- Pick a workflow by name via the picker. `on_cancel` fires when nothing is
--- chosen so callers (e.g. the headless CLI) can quit.
+-- Pick a workflow by name via the picker. Each row describes the workflow by
+-- its latest run (status icon · branch · when · commit title) instead of the
+-- useless internal id. `on_cancel` fires when nothing is chosen so callers
+-- (e.g. the headless CLI) can quit.
 ---@param prompt string
 ---@param cb fun(name: string)
 ---@param on_cancel? fun()
 local function pick_workflow(prompt, cb, on_cancel)
+  -- Open the picker as soon as the (fast, ~0.6s) workflow list returns, then
+  -- enrich each row with its latest run once the (slower, ~2s) run list arrives
+  -- and repaint via picker:refresh() — so the chooser appears immediately
+  -- instead of blocking on the runs fetch.
+  local picker ---@type table? picker handle, set once opened
+  local items ---@type table[]? built from the workflow list
+  local name_w = 0
+  local runs_map ---@type table? id -> latest run (nil until the runs call returns)
+  local runs_loaded = false
+  local chosen = false
+
+  -- Join the latest-run map onto the items and repaint the open picker.
+  local function enrich()
+    if not (items and runs_map) then
+      return
+    end
+    for _, it in ipairs(items) do
+      it.run = runs_map[it.id]
+    end
+    if picker and not picker.closed then
+      picker:refresh()
+    end
+  end
+
+  -- Latest run per workflow, fetched in the background (does not block the
+  -- picker). --limit=100 covers the newest run of any recently-active workflow;
+  -- dormant ones fall back to "no recent runs". Runs come newest-first, so the
+  -- first one seen per id is its latest.
+  run_async({
+    'gh',
+    'run',
+    'list',
+    '--limit=100',
+    '--json',
+    'workflowDatabaseId,headBranch,createdAt,status,conclusion,displayTitle',
+  }, function(out, err)
+    runs_map = {}
+    if not err then
+      local ok, runs = pcall(vim.json.decode, out or '[]')
+      if ok and type(runs) == 'table' then
+        for _, r in ipairs(runs) do
+          local id = tostring(r.workflowDatabaseId or '')
+          if id ~= '' and not runs_map[id] then
+            runs_map[id] = r
+          end
+        end
+      end
+    end
+    runs_loaded = true
+    enrich()
+  end)
+
   run_async({ 'gh', 'workflow', 'list', '--all' }, function(out, err)
     if err then
       vim.notify('Failed to fetch workflows.\n' .. (err or ''), vim.log.levels.ERROR)
       return done(on_cancel)
     end
-    local items = {}
+    items = {}
     for line in (out or ''):gmatch '[^\n]+' do
       -- gh workflow list is tab-delimited: NAME\tSTATE\tID
-      local name = line:match '^(.-)\t' or line
+      local name, state, id = line:match '^(.-)\t(.-)\t(.*)$'
+      name = name or line
       if name and name ~= '' then
-        items[#items + 1] = { name = name, text = line }
+        items[#items + 1] = { text = name, name = name, state = state or '', id = id or '', run = nil }
+        name_w = math.max(name_w, vim.fn.strdisplaywidth(name))
       end
     end
     if #items == 0 then
       vim.notify('No workflows found.', vim.log.levels.WARN)
       return done(on_cancel)
     end
-    Snacks.picker.select(items, {
-      prompt = prompt,
-      format_item = function(it)
-        return it.text
-      end,
-    }, function(choice)
-      if choice then
-        cb(choice.name)
-      else
-        done(on_cancel)
+    name_w = math.min(name_w, 28)
+    if runs_map then -- runs already back (rare: faster than the workflow list)
+      for _, it in ipairs(items) do
+        it.run = runs_map[it.id]
       end
-    end)
+    end
+
+    picker = Snacks.picker.pick {
+      items = items,
+      title = prompt,
+      layout = { preset = 'select' }, -- compact, centered, no preview pane
+      on_close = function()
+        if not chosen then
+          done(on_cancel)
+        end
+      end,
+      format = function(item)
+        local disabled = item.state ~= 'active'
+        local r = item.run
+        local key = r and status_key(r.status, r.conclusion) or 'neutral'
+        local icon = disabled and '○' or (STATUS_ICON[key] or '◆')
+        local ihl = disabled and 'Comment' or (STATUS_HL[key] or 'Normal')
+        local ret = {
+          { icon .. ' ', ihl },
+          { pad(truncate(item.name, name_w), name_w), disabled and 'Comment' or 'Normal' },
+        }
+        if disabled then
+          ret[#ret + 1] = { '  (disabled)', 'Comment' }
+        elseif r then
+          ret[#ret + 1] = { '  ' }
+          ret[#ret + 1] = { truncate(r.headBranch or '', 20), 'Function' }
+          ret[#ret + 1] = { '  ' }
+          ret[#ret + 1] = { rel_time(parse_iso(r.createdAt)), 'Comment' }
+          if r.displayTitle and r.displayTitle ~= '' then
+            ret[#ret + 1] = { '  ' }
+            ret[#ret + 1] = { truncate(r.displayTitle, 30), 'Comment' }
+          end
+        elseif runs_loaded then
+          ret[#ret + 1] = { '  · no recent runs', 'Comment' }
+        else
+          ret[#ret + 1] = { '  …', 'Comment' } -- runs still loading; refresh fills this in
+        end
+        return ret
+      end,
+      confirm = function(p, item)
+        item = item or p:current()
+        if item and item.name then
+          chosen = true
+          p:close()
+          cb(item.name)
+        else
+          p:close() -- no selection → let on_close treat it as a cancel
+        end
+      end,
+    }
   end)
 end
-
-----------------------------------------------------------------------
--- ghwl: list runs for a selected workflow
-----------------------------------------------------------------------
 
 -- Show recent runs for a named workflow as an aligned, colorized table.
 ---@param name string
@@ -1030,96 +1121,6 @@ function M.ghws(on_done)
     pick_workflow('Monitor workflow', function(name)
       monitor_workflow(name, on_done)
     end, on_done)
-  end)
-end
-
-----------------------------------------------------------------------
--- ghw: one workflow picker; act on the selection via keymaps
---   <cr>  run on a branch     <c-s> monitor latest run
---   <c-l> list recent runs    <c-o> open workflow on github.com
-----------------------------------------------------------------------
-
----@param on_done? fun()
-function M.ghw(on_done)
-  preflight_async(true, function(authed)
-    if not authed then
-      return done(on_done)
-    end
-    run_async({ 'gh', 'workflow', 'list', '--all' }, function(out, err)
-      if err then
-        vim.notify('Failed to fetch workflows.\n' .. (err or ''), vim.log.levels.ERROR)
-        return done(on_done)
-      end
-      local items = {}
-      for line in (out or ''):gmatch '[^\n]+' do
-        -- gh workflow list is tab-delimited: NAME\tSTATE\tID
-        local name, state, id = line:match '^(.-)\t(.-)\t(.*)$'
-        name = name or line
-        if name and name ~= '' then
-          items[#items + 1] = { text = name, name = name, state = state or '', id = id or '' }
-        end
-      end
-      if #items == 0 then
-        vim.notify('No workflows found.', vim.log.levels.WARN)
-        return done(on_done)
-      end
-
-      -- Wrap a name-taking action: grab the focused item, close the picker,
-      -- then run. on_done is intentionally not threaded through the picker —
-      -- these are interactive-only entry points.
-      local function act(fn)
-        return function(picker, item)
-          item = item or picker:current()
-          picker:close()
-          if item and item.name then
-            fn(item.name)
-          end
-        end
-      end
-
-      Snacks.picker.pick {
-        items = items,
-        title = 'GitHub Workflows',
-        on_close = function()
-          done(on_done)
-        end,
-        format = function(item)
-          local active = item.state == 'active'
-          return {
-            { active and '● ' or '○ ', active and 'DiagnosticOk' or 'Comment' },
-            { item.name, 'Normal' },
-          }
-        end,
-        confirm = act(function(name)
-          run_on_branch(name)
-        end),
-        actions = {
-          gh_monitor = act(function(name)
-            monitor_workflow(name)
-          end),
-          gh_runs = act(function(name)
-            list_runs(name, 20)
-          end),
-          gh_browse = act(function(name)
-            -- gh resolves the display name to the correct workflow file URL.
-            run_async({ 'gh', 'workflow', 'view', name, '--web' }, function(_, verr)
-              if verr then
-                vim.notify('Failed to open workflow.\n' .. (verr or ''), vim.log.levels.ERROR)
-              end
-            end)
-          end),
-        },
-        win = {
-          input = {
-            keys = {
-              ['<c-s>'] = { 'gh_monitor', mode = { 'n', 'i' }, desc = 'Monitor latest run' },
-              ['<c-l>'] = { 'gh_runs', mode = { 'n', 'i' }, desc = 'List recent runs' },
-              ['<c-o>'] = { 'gh_browse', mode = { 'n', 'i' }, desc = 'Open on github.com' },
-            },
-          },
-        },
-      }
-    end)
   end)
 end
 

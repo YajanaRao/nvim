@@ -4,8 +4,8 @@
 -- both this plugin and the standalone terminal launcher (`cli/gh.lua`), which
 -- is invoked by the fish `ghb`/`ghwl`/`ghwr`/`ghws` functions.
 --
--- Commands: :Ghb :Ghw :Ghwl :Ghwr :Ghws
--- Keymaps:  <leader>ghb <leader>ghw <leader>ghl <leader>ghr <leader>ghs
+-- Commands: :Ghb :Ghwl :Ghwr :Ghws
+-- Keymaps:  <leader>ghb <leader>ghl <leader>ghr <leader>ghs
 
 local gh = require 'gh.core'
 
@@ -33,18 +33,10 @@ vim.api.nvim_create_user_command('Ghws', function()
   gh.ghws()
 end, { desc = 'Monitor latest workflow run (live)' })
 
-vim.api.nvim_create_user_command('Ghw', function()
-  gh.ghw()
-end, { desc = 'Workflow picker (run/monitor/list via keys)' })
-
 local map = vim.keymap.set
 map('n', '<leader>ghb', function()
   gh.ghb()
 end, { desc = 'GitHub Browser Tab' })
--- One picker; act on the selection: <cr> run · <c-s> monitor · <c-l> runs · <c-o> browse.
-map('n', '<leader>ghw', function()
-  gh.ghw()
-end, { desc = 'GitHub Workflows (picker)' })
 map('n', '<leader>ghl', function()
   gh.ghwl()
 end, { desc = 'GitHub Workflow Runs (list)' })
