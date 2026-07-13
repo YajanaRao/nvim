@@ -126,6 +126,86 @@ local STATUS_HL = {
 
 local SPINNER = { '◐', '◓', '◑', '◒' }
 
+-- Terminal progress indicator via Neovim's native |progress-message| API. Since
+-- Neovim 0.12 the built-in TUI owns the OSC 9;4 (ConEmu) progress sequence and
+-- emits it for us, so a `kind = 'progress'` message from nvim_echo drives the
+-- Ghostty tab title + macOS Dock progress bar even when backgrounded — and also
+-- feeds |vim.ui.progress_status()| on the statusline. This replaces writing OSC
+-- 9;4 to /dev/tty by hand: because the TUI now manages that channel, manual
+-- writes raced with (and were cleared by) Neovim's own emission. Letting nvim
+-- own it is the supported path and needs no TERM sniffing or teardown escape.
+--
+-- status → OSC state: 'running' + percent = normal bar (state 1), 'running'
+-- with nil percent = indeterminate (state 3), 'failed' = red (state 2),
+-- 'success' finishes the message and clears the bar (state 0).
+local progress = (function()
+  local ID = 'ghws'
+  local active = false
+
+  ---@param text string
+  ---@param status 'running'|'success'|'failed'
+  ---@param percent integer? nil signals "unknown progress" (indeterminate)
+  local function emit(text, status, percent)
+    pcall(vim.api.nvim_echo, { { text } }, false, {
+      id = ID,
+      kind = 'progress',
+      source = 'ghws',
+      title = 'GitHub run',
+      status = status,
+      percent = percent,
+    })
+  end
+
+  return {
+    -- Update the bar; a nil pct renders an indeterminate/pulsing bar.
+    run = function(text, pct)
+      emit(text, 'running', pct)
+      active = true
+    end,
+    -- Leave a red (error) bar up until the panel closes.
+    fail = function(text)
+      emit(text, 'failed', 100)
+      active = true
+    end,
+    -- Finish the message so the terminal bar / Dock icon clears.
+    clear = function()
+      if active then
+        emit('', 'success', 100)
+        active = false
+      end
+    end,
+  }
+end)()
+
+-- Drive the progress bar from a decoded `gh run view` payload.
+---@param data table
+local function emit_run_progress(data)
+  local title = data.displayTitle or 'workflow run'
+  if data.status == 'completed' then
+    -- Leave a red bar up for failures until the panel closes; clear on success.
+    if data.conclusion == 'success' then
+      progress.clear()
+    else
+      progress.fail(title)
+    end
+    return
+  end
+  local total, completed = 0, 0
+  for _, job in ipairs(data.jobs or {}) do
+    for _, step in ipairs(job.steps or {}) do
+      total = total + 1
+      if step.status == 'completed' or step.conclusion == 'skipped' then
+        completed = completed + 1
+      end
+    end
+  end
+  if total == 0 then
+    progress.run(title, nil) -- queued / steps not reported yet → indeterminate
+  else
+    progress.run(title, math.floor(completed * 100 / total))
+  end
+end
+
 -- Resolve a job/step/run into an icon key based on status + conclusion.
 local function status_key(status, conclusion)
   if status == 'completed' then
@@ -469,6 +549,11 @@ end
 -- ghwr: pick a workflow + branch, then trigger a run
 ----------------------------------------------------------------------
 
+-- Forward declarations: the background monitor session lives with the ghws
+-- machinery below, but the trigger flow here starts one after a run is kicked
+-- off (and resolves the freshly-created run id, which `gh` doesn't return).
+local start_session, resolve_triggered_run
+
 -- Pick a remote branch for a named workflow and trigger a run on it.
 ---@param name string
 ---@param on_done? fun()
@@ -499,13 +584,31 @@ local function run_on_branch(name, on_done)
     if not branch then
       return done(on_done)
     end
+    local trigger_epoch = os.time()
     run_async({ 'gh', 'workflow', 'run', name, '--ref', branch }, function(_, run_err)
       if run_err then
         vim.notify('Failed to trigger workflow.\n' .. (run_err or ''), vim.log.levels.ERROR)
         return done(on_done)
       end
       vim.notify(('Triggered "%s" on %s'):format(name, branch), vim.log.levels.INFO, { title = 'GitHub Workflow' })
-      done(on_done)
+      -- Headless/CLI callers just trigger and quit — nothing to monitor in a
+      -- throwaway editor. Interactive Neovim starts a background monitor so the
+      -- Ghostty bar + statusline track the run while you keep working; open the
+      -- detail panel any time with <leader>ghs.
+      if on_done then
+        return done(on_done)
+      end
+      resolve_triggered_run(name, branch, trigger_epoch, 1, function(run_id)
+        if run_id then
+          start_session(name, run_id)
+        else
+          vim.notify(
+            ('Triggered "%s", but the new run hasn\'t surfaced yet. Use <leader>ghs to monitor.'):format(name),
+            vim.log.levels.WARN,
+            { title = 'GitHub Workflow' }
+          )
+        end
+      end)
     end)
   end)
 end
@@ -521,10 +624,6 @@ function M.ghwr(on_done)
     end, on_done)
   end)
 end
-
-----------------------------------------------------------------------
--- ghws: live monitor the latest run of a selected workflow (native panel)
-----------------------------------------------------------------------
 
 -- Build the rendered lines + highlight specs for a run payload.
 ---@param data table decoded `gh run view --json ...`
@@ -619,22 +718,179 @@ local function render(data, frame)
   return lines, hls
 end
 
--- Open the live monitor panel for a resolved run id and poll it until it
--- completes. All `gh run view` fetches are async; the spinner redraws from the
--- last payload between fetches so it animates without hammering `gh`.
----@param name string workflow name (window title)
----@param run_id integer|string
----@param on_done? fun()
-local function monitor_run(name, run_id, on_done)
-  local ns = vim.api.nvim_create_namespace 'ghws'
-  local frame = 0
-  local timer = assert(vim.uv.new_timer())
-  local closed = false
-  local run_url = nil
+-- The single active background monitor, or nil. It polls one run to completion
+-- — driving the progress bar, statusline (via progress messages), completion
+-- sound + notification — independent of any window. A detail panel is just an
+-- observer registered in `listeners`. Fields: name, run_id, timer, frame,
+-- last_data, last_err, err_count, fetching, run_url, stopped, listeners.
+local session = nil
 
+-- Clear the terminal progress bar when Neovim exits, so a backgrounded tab /
+-- Dock icon can't get stuck showing a stale bar. Registered once, globally.
+vim.api.nvim_create_autocmd('VimLeavePre', {
+  callback = function()
+    progress.clear()
+  end,
+})
+
+-- Repaint every attached panel from the session's latest state.
+local function notify_listeners(sess)
+  for _, cb in pairs(sess.listeners) do
+    pcall(cb)
+  end
+end
+
+-- Stop the session's polling. Detaches it as the active session so a later
+-- clear/replace can't touch a newer run.
+local function stop_session(sess)
+  if sess.stopped then
+    return
+  end
+  sess.stopped = true
+  if sess.timer and not sess.timer:is_closing() then
+    sess.timer:stop()
+    sess.timer:close()
+  end
+  if session == sess then
+    session = nil
+  end
+end
+
+-- Announce a finished run (notification + macOS sound), stop polling, and let
+-- the terminal bar settle: success already cleared it (emit_run_progress);
+-- a red failure bar lingers briefly, then clears unless a newer run took over.
+local function finish_session(sess, data)
+  local concl = data.conclusion or 'completed'
+  local ok = concl == 'success'
+  local dur = ''
+  local started, finished = parse_iso(data.createdAt), parse_iso(data.updatedAt)
+  if started and finished then
+    dur = ' (' .. fmt_dur(finished - started) .. ')'
+  end
+  local icon = STATUS_ICON[concl] or STATUS_ICON.neutral
+  local level = ok and vim.log.levels.INFO or (concl == 'cancelled' and vim.log.levels.WARN or vim.log.levels.ERROR)
+  vim.notify(('%s %s %s%s'):format(icon, sess.name, concl:upper(), dur), level, { title = 'GitHub Workflow' })
+
+  if vim.fn.has 'mac' == 1 then
+    local sound = ok and 'Glass' or (concl == 'failure' and 'Basso' or nil)
+    if sound then
+      vim.system { 'afplay', '/System/Library/Sounds/' .. sound .. '.aiff' }
+    end
+  end
+
+  stop_session(sess)
+
+  if not ok then
+    vim.defer_fn(function()
+      if not session then
+        progress.clear()
+      end
+    end, 10000)
+  end
+end
+
+-- Start (and register as active) a background monitor for a resolved run id,
+-- replacing any current session. All `gh run view` fetches are async and capped
+-- with a timeout so a hung `gh` gets killed and retried instead of wedging the
+-- poller. Returns the session so a panel can attach.
+---@param name string workflow name
+---@param run_id integer|string
+start_session = function(name, run_id)
+  if session then
+    stop_session(session)
+  end
+  local sess = {
+    name = name,
+    run_id = run_id,
+    frame = 0,
+    last_data = nil,
+    last_err = nil,
+    err_count = 0,
+    fetching = false,
+    run_url = nil,
+    stopped = false,
+    listeners = {},
+  }
+  session = sess
+  sess.timer = assert(vim.uv.new_timer())
+
+  local function fetch()
+    if sess.fetching or sess.stopped then
+      return
+    end
+    sess.fetching = true
+    vim.system({
+      'gh',
+      'run',
+      'view',
+      tostring(run_id),
+      '--json',
+      'status,conclusion,jobs,createdAt,updatedAt,displayTitle,headBranch,url',
+    }, { text = true, timeout = 12000 }, function(res)
+      sess.fetching = false
+      if sess.stopped then
+        return
+      end
+      if res.code ~= 0 then
+        sess.err_count = sess.err_count + 1
+        sess.last_err = res
+        vim.schedule(function()
+          notify_listeners(sess)
+        end)
+        return
+      end
+      local okd, data = pcall(vim.json.decode, res.stdout or '{}')
+      if not okd or type(data) ~= 'table' then
+        sess.err_count = sess.err_count + 1
+        sess.last_err = { stderr = 'could not parse gh output', code = -1 }
+        vim.schedule(function()
+          notify_listeners(sess)
+        end)
+        return
+      end
+      sess.err_count = 0
+      sess.last_err = nil
+      sess.last_data = data
+      sess.run_url = data.url or sess.run_url
+      vim.schedule(function()
+        emit_run_progress(data)
+        notify_listeners(sess)
+        if data.status == 'completed' then
+          finish_session(sess, data)
+        end
+      end)
+    end)
+  end
+
+  -- Tick at 250ms for a smooth spinner; fetch fresh data every ~1.5s (6 ticks).
+  sess.timer:start(0, 250, function()
+    if sess.stopped then
+      return
+    end
+    sess.frame = sess.frame + 1
+    vim.schedule(function()
+      if not sess.stopped then
+        notify_listeners(sess)
+      end
+    end)
+    if sess.frame == 1 or sess.frame % 6 == 0 then
+      fetch()
+    end
+  end)
+
+  return sess
+end
+
+-- Open a detail panel that observes `sess`, repainting as it updates. Closing
+-- the panel only detaches this observer — the session keeps polling in the
+-- background. The spinner animates off the session's own tick.
+---@param sess table
+---@param on_done? fun()
+local function attach_panel(sess, on_done)
+  local ns = vim.api.nvim_create_namespace 'ghws'
   local win = Snacks.win {
-    title = ' ' .. name .. ' ',
-    text = { ' Loading run ' .. run_id .. '…' },
+    title = ' ' .. sess.name .. ' ',
+    text = { ' Loading run ' .. sess.run_id .. '…' },
     width = 0.7,
     height = 0.7,
     border = 'rounded',
@@ -644,45 +900,23 @@ local function monitor_run(name, run_id, on_done)
       q = 'close',
       ['<esc>'] = 'close',
       o = function(self)
-        if run_url then
-          vim.ui.open(run_url)
+        if sess.run_url then
+          vim.ui.open(sess.run_url)
         end
         self:close()
       end,
     },
   }
 
-  local function stop()
-    if closed then
+  local function set_lines(lines, hls)
+    if not (win.buf and vim.api.nvim_buf_is_valid(win.buf)) then
       return
     end
-    closed = true
-    if not timer:is_closing() then
-      timer:stop()
-      timer:close()
-    end
-  end
-
-  -- Stop polling (and notify the caller) when the window closes.
-  win:on('WinClosed', function()
-    stop()
-    done(on_done)
-  end, { win = true })
-
-  local last_data = nil
-  local fetching = false
-
-  -- Paint the buffer from a decoded payload (must run on the main loop).
-  local function paint(data)
-    if closed or not (win.buf and vim.api.nvim_buf_is_valid(win.buf)) then
-      return
-    end
-    local lines, hls = render(data, frame)
     vim.bo[win.buf].modifiable = true
     vim.api.nvim_buf_set_lines(win.buf, 0, -1, false, lines)
     vim.bo[win.buf].modifiable = false
     vim.api.nvim_buf_clear_namespace(win.buf, ns, 0, -1)
-    for _, h in ipairs(hls) do
+    for _, h in ipairs(hls or {}) do
       pcall(vim.api.nvim_buf_set_extmark, win.buf, ns, h.line, math.max(h.col, 0), {
         end_col = h.end_col == -1 and #(lines[h.line + 1] or '') or h.end_col,
         hl_group = h.hl,
@@ -690,67 +924,39 @@ local function monitor_run(name, run_id, on_done)
     end
   end
 
-  -- Kick off an async `gh run view`; updates last_data and stops on completion.
-  local function fetch()
-    if fetching or closed then
-      return
+  -- Render from the session: live data when we have it, else a loading screen
+  -- that surfaces a stuck fetch (so it isn't an eternal "Loading…").
+  local function paint()
+    if sess.last_data then
+      set_lines(render(sess.last_data, sess.frame))
+    elseif sess.last_err then
+      local res = sess.last_err
+      local timed_out = (res.signal or 0) ~= 0 or res.code == 124
+      local msg = ((res.stderr ~= '' and res.stderr) or res.stdout or ''):gsub('%s+$', '')
+      local lines = {
+        ' Loading run ' .. sess.run_id .. '…',
+        '',
+        ('   gh run view %s (attempt %d); retrying…'):format(timed_out and 'timed out' or 'failed', sess.err_count),
+      }
+      for _, l in ipairs(msg ~= '' and vim.split(msg, '\n', { plain = true }) or {}) do
+        lines[#lines + 1] = '   ' .. l
+      end
+      lines[#lines + 1] = ''
+      lines[#lines + 1] = '   q: close'
+      set_lines(lines, {})
     end
-    fetching = true
-    vim.system({
-      'gh',
-      'run',
-      'view',
-      tostring(run_id),
-      '--json',
-      'status,conclusion,jobs,createdAt,updatedAt,displayTitle,headBranch,url',
-    }, { text = true }, function(res)
-      fetching = false
-      if res.code ~= 0 then
-        return
-      end
-      local okd, data = pcall(vim.json.decode, res.stdout or '{}')
-      if not okd or type(data) ~= 'table' then
-        return
-      end
-      last_data = data
-      run_url = data.url or run_url
-      vim.schedule(function()
-        paint(data)
-      end)
-      if data.status == 'completed' then
-        stop()
-        if vim.fn.has 'mac' == 1 then
-          local sound = data.conclusion == 'success' and 'Glass' or (data.conclusion == 'failure' and 'Basso' or nil)
-          if sound then
-            vim.system { 'afplay', '/System/Library/Sounds/' .. sound .. '.aiff' }
-          end
-        end
-      end
-    end)
   end
 
-  -- Tick at 250ms for a smooth spinner; fetch fresh data every ~1.5s (6 ticks).
-  timer:start(0, 250, function()
-    if closed then
-      return
-    end
-    frame = frame + 1
-    vim.schedule(function()
-      if closed or not (win.buf and vim.api.nvim_buf_is_valid(win.buf)) then
-        stop()
-        return
-      end
-      if last_data then
-        paint(last_data)
-      end
-    end)
-    if frame == 1 or frame % 6 == 0 then
-      fetch()
-    end
-  end)
+  sess.listeners[win.buf] = paint
+  win:on('WinClosed', function()
+    sess.listeners[win.buf] = nil
+    done(on_done)
+  end, { win = true })
+
+  paint() -- the session may already have data
 end
 
--- Resolve the latest run of a named workflow and open the live monitor.
+-- Resolve the latest run of a named workflow, start a session, and open a panel.
 ---@param name string
 ---@param on_done? fun()
 local function monitor_workflow(name, on_done)
@@ -765,7 +971,48 @@ local function monitor_workflow(name, on_done)
       vim.notify("No runs found for workflow '" .. name .. "'", vim.log.levels.WARN)
       return done(on_done)
     end
-    monitor_run(name, run_id, on_done)
+    attach_panel(start_session(name, run_id), on_done)
+  end)
+end
+
+-- Poll `gh run list` (filtered to the branch) until a run created at/after the
+-- trigger surfaces — `gh workflow run` doesn't return the new run id — then hand
+-- its databaseId to `cb`. Gives up with cb(nil) after ~20s of retries.
+---@param name string
+---@param branch string
+---@param trigger_epoch integer
+---@param attempt integer
+---@param cb fun(run_id: integer|string|nil)
+resolve_triggered_run = function(name, branch, trigger_epoch, attempt, cb)
+  run_async({
+    'gh',
+    'run',
+    'list',
+    '--workflow=' .. name,
+    '--branch=' .. branch,
+    '--limit=5',
+    '--json',
+    'databaseId,createdAt',
+  }, function(out, err)
+    if not err then
+      local ok, runs = pcall(vim.json.decode, out or '[]')
+      if ok and type(runs) == 'table' then
+        -- Runs come newest-first; the newest created at/after the trigger (with
+        -- a little slack for clock skew) is the one we just kicked off.
+        for _, r in ipairs(runs) do
+          local created = parse_iso(r.createdAt)
+          if created and created >= trigger_epoch - 10 then
+            return cb(r.databaseId)
+          end
+        end
+      end
+    end
+    if attempt >= 10 then
+      return cb(nil)
+    end
+    vim.defer_fn(function()
+      resolve_triggered_run(name, branch, trigger_epoch, attempt + 1, cb)
+    end, 2000)
   end)
 end
 
@@ -774,6 +1021,11 @@ function M.ghws(on_done)
   preflight_async(true, function(authed)
     if not authed then
       return done(on_done)
+    end
+    -- Attach to a background monitor if one is already running (e.g. started by
+    -- <leader>ghr); otherwise pick a workflow and start one.
+    if session and not session.stopped then
+      return attach_panel(session, on_done)
     end
     pick_workflow('Monitor workflow', function(name)
       monitor_workflow(name, on_done)
