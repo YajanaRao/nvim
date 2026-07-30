@@ -10,13 +10,19 @@ vim.schedule(function()
   require('lualine').setup {
     options = {
       globalstatus = true,
+      component_separators = { left = '|', right = '|' },
+      section_separators = { left = '', right = '' },
     },
     disabled_filetypes = { statusline = { 'dashboard', 'alpha', 'ministarter', 'snacks_dashboard' } },
     sections = {
+      -- Loudness gradient: a/z (edges) loud, b/y medium, c/x (center) quiet.
+      -- Override default b to drop its diagnostics (moved to y) so it isn't shown twice.
+      lualine_b = { 'branch', 'diff' },
       lualine_c = {
         { 'filetype', icon_only = true, separator = '', padding = { left = 1, right = 0 } },
         { 'filename', path = 1 },
       },
+      -- Quiet center: transient status indicators only.
       lualine_x = {
         -- Running progress (nvim_echo kind='progress': gh workflow runs, LSP, …).
         {
@@ -49,13 +55,15 @@ vim.schedule(function()
             return status ~= nil and status.get() ~= nil
           end,
         },
+      },
+      -- Medium slot near the right edge: diagnostics.
+      lualine_y = {
         {
           'diagnostics',
           sources = { 'nvim_diagnostic' },
           symbols = { error = ' ', warn = ' ', info = ' ', hint = ' ' },
         },
       },
-      lualine_y = {},
     },
   }
 end)

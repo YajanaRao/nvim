@@ -10,9 +10,8 @@ vim.pack.add { 'https://github.com/nvim-mini/mini.nvim' }
 
 vim.opt.runtimepath:prepend '~/Developer/forestflower'
 require('forestflower').setup {
-  diagnostic_text_highlight = true,
-  diagnostic_line_highlight = true,
-  transparent_background_level = 2,
+  italic = true,
+  transparent_background = true,
 }
 vim.cmd.colorscheme 'forestflower'
 
@@ -23,7 +22,7 @@ require('vim._core.ui2').enable {
     targets = 'cmd',
     cmd = { height = 0.5 },
     dialog = { height = 0.5 },
-    msg = { height = 0.5, timeout = 4000 },
+    msg = { target = 'msg' },
     pager = { height = 1 },
   },
 }

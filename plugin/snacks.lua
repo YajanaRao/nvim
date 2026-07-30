@@ -223,9 +223,16 @@ end, { desc = 'LSP Workspace Symbols' })
 -- tf = floating terminal, tt = tab terminal, td = todo scratch
 map('n', '<leader>tf', function()
   local root = vim.fs.root(0, { '.git' }) or vim.uv.cwd()
-  Snacks.terminal.toggle('/opt/homebrew/bin/fish', {
+  Snacks.terminal.toggle('/opt/homebrew/bin/nu', {
     cwd = root,
-    win = { style = 'float' },
+    win = {
+      style = 'float',
+      border = vim.g.borderStyle or 'rounded',
+      title = ' nushell ',
+      title_pos = 'center',
+      width = 0.85,
+      height = 0.85,
+    },
   })
 end, { desc = 'Terminal Float' })
 
@@ -244,7 +251,8 @@ map('n', '<leader>tt', function()
       return
     end
   end
-  vim.cmd 'terminal /opt/homebrew/bin/fish'
+  vim.cmd 'terminal /opt/homebrew/bin/nu'
+  pcall(vim.api.nvim_buf_set_name, 0, 'nushell')
 end, { desc = 'Terminal' })
 
 map('n', '<leader>td', function()
